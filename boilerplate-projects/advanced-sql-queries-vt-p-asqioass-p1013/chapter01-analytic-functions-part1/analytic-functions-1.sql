@@ -1,0 +1,152 @@
+USE [Children]
+
+-- Prepare the database tables
+	-- 1. Create table
+	GO
+	DROP TABLE [dbo].[CHILDSTAT]
+	
+	CREATE TABLE [dbo].[CHILDSTAT](
+		[FIRSTNAME] [varchar](50) NULL,
+		[GENDER] [char](2) NULL,
+		[BIRTHDATE] [date] NULL,
+		[HEIGHT] [int] NULL,
+		[WEIGHT] [int] NULL
+	) ON [PRIMARY]
+	GO
+
+	-- 2. Insert data into table
+	GO
+	INSERT INTO [dbo].[CHILDSTAT]
+			   ([FIRSTNAME]
+			   ,[GENDER]
+			   ,[BIRTHDATE]
+			   ,[HEIGHT]
+			   ,[WEIGHT])
+		 VALUES
+			   ('LAUREN' ,'F', '10-JUN-00', 54, 876),
+			   ('ROSEMARY' ,'F', '08-MAY-00', 35, 123),
+			   ('ALBERT' ,'M', '02-AUG-00', 45, 150),
+			   ('BUDDY' ,'M', '02-OCT-98', 45, 189),
+			   ('FARQUAR' ,'M', '05-NOV-98', 76, 198),
+			   ('SIMON' ,'M', '03-JAN-99', 87, 256),
+			   ('TOMMY' ,'M', '11-DEC-98', 78, 167)
+	GO
+
+-- Task 1: Create a column containing row counts within gender
+	-- Non-Analytic Method
+
+		-- Step 1: Create table holding counts by gender.
+		GO
+
+		SELECT GENDER, COUNT(*) AS GENDER_COUNTS INTO
+		CHILDSTAT_COUNT_BY_GENDER
+			FROM CHILDSTAT 
+			GROUP BY GENDER
+
+		GO
+
+		-- Step 2: Merge against CHILDSTAT
+		GO
+
+		SELECT A.*, B.GENDER_COUNTS
+			FROM CHILDSTAT AS A INNER JOIN CHILDSTAT_COUNT_BY_GENDER AS B
+			ON A.GENDER = B.GENDER
+
+		GO
+		/*
+		FIRSTNAME	GENDER	BIRTHDATE	HEIGHT	WEIGHT	GENDER_COUNTS
+		LAUREN		F 		2000-06-10	54		876		2
+		ROSEMARY	F 		2000-05-08	35		123		2	
+		ALBERT		M 		2000-08-02	45		150		5
+		BUDDY		M 		1998-10-02	45		189		5
+		FARQUAR		M 		1998-11-05	76		198		5
+		SIMON		M 		1999-01-03	87		256		5
+		TOMMY		M 		1998-12-11	78		167		5
+		*/
+
+-- Task 1: Create a column containing row counts within gender
+	-- Analytic Method
+		GO
+
+		SELECT A.*,
+			   COUNT(*) OVER (PARTITION BY A.GENDER) AS GENDER_COUNTS
+		FROM CHILDSTAT A	
+
+		GO
+
+		/*
+		FIRSTNAME	GENDER	BIRTHDATE	HEIGHT	WEIGHT	GENDER_COUNTS
+		LAUREN		F 		2000-06-10	54		876		2
+		ROSEMARY	F 		2000-05-08	35		123		2	
+		ALBERT		M 		2000-08-02	45		150		5
+		BUDDY		M 		1998-10-02	45		189		5
+		FARQUAR		M 		1998-11-05	76		198		5
+		SIMON		M 		1999-01-03	87		256		5
+		TOMMY		M 		1998-12-11	78		167		5
+		*/
+
+-- Task 2: Create running totals of weight by gender
+	-- Analytic Method
+	GO
+
+	SELECT A.GENDER, A.FIRSTNAME, A.WEIGHT,
+		SUM(A.WEIGHT) OVER (PARTITION BY A.GENDER ORDER BY A.WEIGHT) AS WT_RUN
+	FROM CHILDSTAT A
+	ORDER BY A.GENDER, A.WEIGHT
+
+	GO
+
+	/*
+	GENDER	FIRSTNAME	WEIGHT	WT_RUN
+	F 		ROSEMARY	123		123
+	F 		LAUREN		876		999
+	M 		ALBERT		150		150
+	M 		TOMMY		167		317
+	M 		BUDDY		189		506
+	M 		FARQUAR		198		704
+	M 		SIMON		256		960
+	*/
+
+-- Task 3: Create a column containing maximum height within gender
+	-- Analytic Method
+
+	GO
+
+	SELECT A.*,
+		MAX(A.HEIGHT) OVER (PARTITION BY A.GENDER) AS MAX_HT 
+	FROM CHILDSTAT A
+
+	GO
+
+	/*
+	FIRSTNAME	GENDER	BIRTHDATE	HEIGHT	WEIGHT	MAX_HT
+	LAUREN		F 		2000-06-10	54		876		54
+	ROSEMARY	F 		2000-05-08	35		123		54
+	ALBERT		M 		2000-08-02	45		150		87
+	BUDDY		M 		1998-10-02	45		189		87
+	FARQUAR		M 		1998-11-05	76		198		87
+	SIMON		M 		1999-01-03	87		256		87
+	TOMMY		M 		1998-12-11	78		167		87
+	*/
+
+-- Task 4: Create a column containing row counts within gender and birth year
+	-- Analytic Method
+
+	GO
+
+	SELECT A.*,
+		COUNT(*) OVER (PARTITION BY A.GENDER, YEAR(BIRTHDATE)) AS CNT_GBY
+	FROM CHILDSTAT A
+	
+	GO
+
+	/*
+	FIRSTNAME	GENDER	BIRTHDATE	HEIGHT	WEIGHT	CNT_GBY
+	LAUREN		F 		2000-06-10	54		876		2
+	ROSEMARY	F 		2000-05-08	35		123		2
+	BUDDY		M 		1998-10-02	45		189		3
+	FARQUAR		M 		1998-11-05	76		198		3
+	TOMMY		M 		1998-12-11	78		167		3
+	SIMON		M 		1999-01-03	87		256		1
+	ALBERT		M 		2000-08-02	45		150		1
+	*/

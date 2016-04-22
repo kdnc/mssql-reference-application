@@ -1,1 +1,1 @@
-README
+MSSQL Reference Application
